@@ -1,179 +1,137 @@
 import { useEffect, useRef, useState } from 'react';
 import heroImage from './assets/images/CasaChalora.jpg';
 import aboutVideo from './assets/images/aboutus.mp4';
+import logoImg from './assets/images/casa-removefinal.png';
 import './App.css';
 
-function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
-function lerp(a, b, t)    { return a + (b - a) * t; }
-
-const INIT = {
-  desktop: { w: 22, h: 62, t: 24 },
-  mobile:  { w: 72, h: 58, t: 20 },
-};
-function getInit() {
-  return window.innerWidth < 768 ? INIT.mobile : INIT.desktop;
-}
-
-const FACILITIES = [
-  { icon: '🛏', label: '3 Bedrooms' },
-  { icon: '🏊', label: 'Private Pool' },
-  { icon: '🛎', label: 'Butler Service' },
-  { icon: '🎱', label: 'Pool / Snooker' },
-  { icon: '🎲', label: 'Board Games' },
-  { icon: '🔥', label: 'BBQ' },
-  { icon: '📶', label: 'WiFi' },
-  { icon: '⚡', label: 'EV Charging' },
-  { icon: '🚗', label: 'Parking' },
-  { icon: '🐾', label: 'Pet Friendly' },
-  { icon: '✨', label: 'Designed Spaces' },
-];
 
 function Hero() {
-  const sectionRef     = useRef(null);
-  const frameRef       = useRef(null);
-  const overlayRef     = useRef(null);
-  const exploreRef     = useRef(null);
-  const subtitleRef    = useRef(null);
-  const titleRef       = useRef(null);
-  const dividerRef     = useRef(null);
-  const facilitiesRef  = useRef(null);
-  const rafRef         = useRef(null);
-  const smoothRef      = useRef(0);
-  const facilShownRef  = useRef(false);
-
-  const [titleEntered, setTitleEntered] = useState(false);
-  const [imageEntered, setImageEntered] = useState(false);
-  const [exploreShown, setExploreShown] = useState(false);
+  const videoRef = useRef(null);
+  const [logoVisible, setLogoVisible] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setTitleEntered(true), 120);
-    const t2 = setTimeout(() => setImageEntered(true), 2800);
-    const t3 = setTimeout(() => setExploreShown(true), 4200);
-    return () => [t1, t2, t3].forEach(clearTimeout);
+    const t = setTimeout(() => setLogoVisible(true), 300);
+    return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
-    const section    = sectionRef.current;
-    const frame      = frameRef.current;
-    const overlay    = overlayRef.current;
-    const explore    = exploreRef.current;
-    const subtitle   = subtitleRef.current;
-    const titleEl    = titleRef.current;
-    const divider    = dividerRef.current;
-    const facilities = facilitiesRef.current;
-    const ANIM_END   = 0.50;
+    const video = videoRef.current;
+    if (!video) return;
 
-    const tick = () => {
-      const maxScroll = section.scrollHeight - window.innerHeight;
-      if (maxScroll > 0) {
-        const raw        = Math.min(1, Math.max(0, window.scrollY / maxScroll));
-        const lerpFactor = window.innerWidth < 768 ? 0.13 : 0.08;
-        smoothRef.current = lerp(smoothRef.current, raw, lerpFactor);
-        const s     = smoothRef.current;
-        const animP = easeOutCubic(Math.min(1, s / ANIM_END));
-
-        const { w: iw, h: ih, t: it } = getInit();
-        const w = lerp(iw, 100, animP);
-        const h = lerp(ih, 100, animP);
-        const t = lerp(it, 0,   animP);
-        const r = lerp(10, 0,   animP);
-
-        frame.style.width        = `${w}%`;
-        frame.style.height       = `${h}%`;
-        frame.style.top          = `${t}%`;
-        frame.style.borderRadius = `${r}px`;
-        if (raw > 0.01) {
-          frame.style.transform = 'translateX(-50%)';
-          frame.style.opacity   = '1';
-        }
-
-        overlay.style.opacity  = String(lerp(0, 0.60, animP));
-
-        // title: black → white as image expands; shadow grows for legibility
-        const titleC = Math.round(lerp(26, 255, animP));
-        titleEl.style.color      = `rgb(${titleC},${titleC},${titleC})`;
-        titleEl.style.textShadow = animP > 0.1
-          ? `0 2px ${Math.round(lerp(4, 24, animP))}px rgba(0,0,0,${lerp(0.15, 0.75, animP).toFixed(2)})`
-          : 'none';
-
-        // subtitle + divider fade out as image expands
-        const subOp = lerp(1, 0, Math.min(1, animP * 2.2));
-        subtitle.style.opacity = String(subOp);
-        divider.style.opacity  = String(subOp);
-
-        explore.style.opacity  = String(lerp(1, 0, Math.min(1, animP * 3)));
-
-        // facilities: reveal slowly during dwell phase
-        const dwellP = Math.max(0, (s - ANIM_END) / (1 - ANIM_END));
-        const facilP = easeOutCubic(Math.min(1, dwellP * 1.6));
-        facilities.style.opacity   = String(facilP);
-        facilities.style.transform = `translateY(${lerp(40, 0, facilP)}px)`;
-
-        // trigger item stagger only after panel is well visible (30%)
-        if (facilP > 0.30 && !facilShownRef.current) {
-          facilShownRef.current = true;
-          facilities.querySelectorAll('.facility-item').forEach((el, i) => {
-            el.style.transitionDelay = `${i * 90}ms`;
-            el.classList.add('facility-item--visible');
-          });
-        }
-        if (facilP < 0.05 && facilShownRef.current) {
-          facilShownRef.current = false;
-          facilities.querySelectorAll('.facility-item').forEach(el => {
-            el.classList.remove('facility-item--visible');
-            el.style.transitionDelay = '0ms';
-          });
-        }
+    const handleTimeUpdate = () => {
+      if (video.currentTime >= 26.5) {
+        video.currentTime = 4;
       }
-
-      rafRef.current = requestAnimationFrame(tick);
     };
 
-    rafRef.current = requestAnimationFrame(tick);
-    const onResize = () => { section.style.height = `${window.innerHeight * 2.5}px`; };
-    onResize();
-    window.addEventListener('resize', onResize, { passive: true });
+    const handleLoaded = () => {
+      video.currentTime = 4;
+      video.play().catch(() => {});
+    };
+
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('loadedmetadata', handleLoaded);
+
+    if (video.readyState >= 1) handleLoaded();
+
     return () => {
-      cancelAnimationFrame(rafRef.current);
-      window.removeEventListener('resize', onResize);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('loadedmetadata', handleLoaded);
     };
   }, []);
+
+  const NAV_LINKS = ['Home', 'Our Villa', 'About Us', 'Experiences', 'Contact'];
 
   return (
-    <section className="hero-section" ref={sectionRef}>
-      <div className="hero-sticky">
+    <section className="hero-section">
+      {/* Background video */}
+      <video
+        ref={videoRef}
+        className="hero-bg-video"
+        src={aboutVideo}
+        autoPlay
+        muted
+        playsInline
+      />
+      <div className="hero-bg-overlay" />
 
-        {/* Title */}
-        <div className={`hero-title-wrap${titleEntered ? ' hero-title-wrap--entered' : ''}`}>
-          <h1 className="hero-title" ref={titleRef}>CASA CHALORA</h1>
-          <p className="hero-subtitle" ref={subtitleRef}>LUXURY ABOVE THE WAVES</p>
-          <div className="hero-title-divider" ref={dividerRef} />
+      {/* Top navigation */}
+      <nav className="hero-nav">
+        <div className="hero-nav-left" />
+        <div className="hero-nav-right">
+          <a href="#book" className="hero-nav-book">BOOK NOW</a>
+          <button className="hero-nav-hamburger" onClick={() => setMenuOpen(true)} aria-label="Menu">
+            <span /><span /><span />
+          </button>
         </div>
+      </nav>
 
-        {/* Portrait frame → full bleed */}
-        <div className={`hero-frame${imageEntered ? ' hero-frame--visible' : ''}`} ref={frameRef}>
-          <img src={heroImage} alt="Casa Chalora" className="hero-image" />
-          <div className="hero-overlay" ref={overlayRef} />
+      {/* Centered logo */}
+      <div className={`hero-logo-wrap${logoVisible ? ' hero-logo-wrap--visible' : ''}`}>
+        <img src={logoImg} alt="Casa Chalora" className="hero-logo" />
+      </div>
 
-          {/* Facilities panel — lives inside the frame, revealed on dwell */}
-          <div className="facilities-panel" ref={facilitiesRef}>
-            <div className="facilities-grid">
-              {FACILITIES.map((f, i) => (
-                <div className="facility-item" key={i}>
-                  <span className="facility-icon">{f.icon}</span>
-                  <span className="facility-label">{f.label}</span>
-                </div>
-              ))}
-            </div>
+      {/* Follow us — right edge */}
+      <div className="hero-follow">
+        <span className="hero-follow-label">FOLLOW US</span>
+        <div className="hero-follow-icons">
+          <a href="https://instagram.com" target="_blank" rel="noreferrer" className="hero-follow-icon" aria-label="Instagram">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+              <circle cx="12" cy="12" r="4"/>
+              <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none"/>
+            </svg>
+          </a>
+          <a href="https://facebook.com" target="_blank" rel="noreferrer" className="hero-follow-icon" aria-label="Facebook">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      {/* Full-screen menu overlay */}
+      <div className={`menu-overlay${menuOpen ? ' menu-overlay--open' : ''}`} aria-hidden={!menuOpen}>
+        {/* Left — villa image */}
+        <div className={`menu-img-panel${menuOpen ? ' menu-img-panel--open' : ''}`}>
+          <img src={heroImage} alt="Casa Chalora Villa" className="menu-img" />
+          <div className="menu-img-overlay" />
+          <div className="menu-img-caption">
+            <span className="menu-img-sub">Luxury Villa</span>
+            <span className="menu-img-name">Casa Chalora</span>
           </div>
         </div>
 
-        {/* Scroll nudge */}
-        <div className={`hero-explore${exploreShown ? ' hero-explore--visible' : ''}`} ref={exploreRef}>
-          <span className="hero-explore-label">↓ &nbsp;Scroll to Explore</span>
-          <div className="hero-explore-line" />
-        </div>
+        {/* Right — white nav panel */}
+        <div className={`menu-nav-panel${menuOpen ? ' menu-nav-panel--open' : ''}`}>
+          {/* Logo + close */}
+          <div className="menu-top">
+            <img src={logoImg} alt="Casa Chalora" className="menu-logo" />
+            <button className="menu-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">✕</button>
+          </div>
 
+          {/* Nav links */}
+          <nav className="menu-links">
+            {NAV_LINKS.map((link, i) => (
+              <a
+                key={link}
+                href={`#${link.toLowerCase().replace(/\s+/g, '-')}`}
+                className="menu-link"
+                style={{ '--link-delay': `${0.18 + i * 0.07}s` }}
+                onClick={() => setMenuOpen(false)}
+              >
+                {link}
+              </a>
+            ))}
+          </nav>
+
+          {/* Contact info */}
+          <div className="menu-contact">
+            <p>casachalora@gmail.com</p>
+            <p>+91 98765 43210</p>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -294,8 +252,6 @@ function App() {
   return (
     <div className="App">
       <Hero />
-      <About />
-      <Experiences />
     </div>
   );
 }
