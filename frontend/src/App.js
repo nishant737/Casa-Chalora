@@ -9,7 +9,6 @@ function Hero() {
   const videoRef = useRef(null);
   const [logoVisible, setLogoVisible] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [videoReady, setVideoReady] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setLogoVisible(true), 300);
@@ -29,7 +28,6 @@ function Hero() {
     const handleLoaded = () => {
       video.currentTime = 4;
       video.play().catch(() => {});
-      setVideoReady(true);
     };
 
     video.addEventListener('timeupdate', handleTimeUpdate);
@@ -47,14 +45,12 @@ function Hero() {
 
   return (
     <section className="hero-section">
-      {/* Poster image — shows instantly while video loads */}
-      <img src={heroImage} alt="" className="hero-bg-poster" aria-hidden="true" />
-
-      {/* Background video */}
+      {/* Background video — poster shows natively until video plays */}
       <video
         ref={videoRef}
-        className={`hero-bg-video${videoReady ? ' hero-bg-video--ready' : ''}`}
+        className="hero-bg-video"
         src={aboutVideo}
+        poster={heroImage}
         autoPlay
         muted
         playsInline
