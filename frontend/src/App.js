@@ -120,7 +120,7 @@ function Hero() {
                 key={link}
                 href={`#${link.toLowerCase().replace(/\s+/g, '-')}`}
                 className="menu-link"
-                style={{ '--link-delay': `${0.18 + i * 0.07}s` }}
+                style={{ '--link-delay': `${0.32 + i * 0.08}s` }}
                 onClick={() => setMenuOpen(false)}
               >
                 {link}
