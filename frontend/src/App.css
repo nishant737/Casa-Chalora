@@ -243,7 +243,7 @@ body {
    MENU OVERLAY
 ════════════════════════════════════════ */
 
-/* Backdrop — fades in behind panels */
+/* Step 1 — whole overlay slides right → left as one unit */
 .menu-overlay {
   position: fixed;
   inset: 0;
@@ -251,29 +251,29 @@ body {
   display: flex;
   pointer-events: none;
   visibility: hidden;
-  background: rgba(10, 8, 6, 0);
-  transition: background 0.6s ease, visibility 0s linear 0.8s;
+  transform: translateX(100%);
+  transition:
+    transform  0.75s cubic-bezier(0.77, 0, 0.18, 1),
+    visibility 0s linear 0.75s;
+  will-change: transform;
 }
 
 .menu-overlay--open {
   pointer-events: all;
   visibility: visible;
-  background: rgba(10, 8, 6, 0.45);
-  transition: background 0.6s ease, visibility 0s linear 0s;
+  transform: translateX(0);
+  transition:
+    transform  0.75s cubic-bezier(0.77, 0, 0.18, 1),
+    visibility 0s linear 0s;
 }
 
 /* ── Left image panel ─────────────────── */
+/* Step 2 — image fades + slides in from right after overlay lands (delay ~0.65s) */
 .menu-img-panel {
   position: relative;
   flex: 0 0 42%;
   overflow: hidden;
-  /* slides in from left, delayed slightly after nav panel starts */
-  clip-path: inset(0 100% 0 0);
-  transition: clip-path 0.85s cubic-bezier(0.77, 0, 0.18, 1) 0.12s;
-}
-
-.menu-img-panel--open {
-  clip-path: inset(0 0% 0 0);
+  background: #0a0806;
 }
 
 .menu-img {
@@ -283,12 +283,16 @@ body {
   height: 100%;
   object-fit: cover;
   object-position: center 30%;
-  transform: scale(1.1);
-  transition: transform 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.3s;
+  opacity: 0;
+  transform: translateX(40px) scale(1.06);
+  transition:
+    opacity   0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.65s,
+    transform 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.65s;
 }
 
 .menu-img-panel--open .menu-img {
-  transform: scale(1);
+  opacity: 1;
+  transform: translateX(0) scale(1);
 }
 
 .menu-img-overlay {
@@ -299,18 +303,22 @@ body {
     rgba(0,0,0,0.08) 0%,
     rgba(0,0,0,0.55) 100%
   );
+  z-index: 1;
 }
 
 .menu-img-caption {
   position: absolute;
   bottom: clamp(24px, 4vh, 48px);
   left: clamp(24px, 3vw, 44px);
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 6px;
   opacity: 0;
-  transform: translateX(-20px);
-  transition: opacity 0.55s ease 0.72s, transform 0.6s cubic-bezier(0.16,1,0.3,1) 0.72s;
+  transform: translateX(20px);
+  transition:
+    opacity   0.5s ease 1s,
+    transform 0.55s cubic-bezier(0.16,1,0.3,1) 1s;
 }
 
 .menu-img-panel--open .menu-img-caption {
@@ -337,6 +345,7 @@ body {
 }
 
 /* ── Right nav panel ─────────────────── */
+/* No separate slide — it travels with the overlay as one unit */
 .menu-nav-panel {
   flex: 1;
   background: #ffffff;
@@ -344,13 +353,10 @@ body {
   flex-direction: column;
   justify-content: space-between;
   padding: clamp(32px, 5vh, 52px) clamp(36px, 5vw, 80px) clamp(28px, 4vh, 48px);
-  transform: translateX(100%);
-  transition: transform 0.72s cubic-bezier(0.77, 0, 0.18, 1);
-  will-change: transform;
 }
 
 .menu-nav-panel--open {
-  transform: translateX(0);
+  /* content reveals handled by children below */
 }
 
 /* ── Top row: logo left-aligned + close top-right ── */
@@ -361,13 +367,13 @@ body {
   justify-content: flex-start;
   margin-bottom: clamp(28px, 5vh, 52px);
   opacity: 0;
-  transform: translateY(-16px);
-  transition: opacity 0.5s ease 0.28s, transform 0.55s cubic-bezier(0.16,1,0.3,1) 0.28s;
+  transform: translateX(32px);
+  transition: opacity 0.5s ease 0.68s, transform 0.55s cubic-bezier(0.16,1,0.3,1) 0.68s;
 }
 
 .menu-nav-panel--open .menu-top {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(0);
 }
 
 .menu-logo {
@@ -463,15 +469,15 @@ body {
   border-top: 1px solid #e8e2d8;
   padding-top: clamp(16px, 2.5vh, 24px);
   opacity: 0;
-  transform: translateY(12px);
+  transform: translateX(24px);
   transition:
-    opacity   0.45s ease 0.65s,
-    transform 0.5s  cubic-bezier(0.16,1,0.3,1) 0.65s;
+    opacity   0.45s ease 1.12s,
+    transform 0.5s  cubic-bezier(0.16,1,0.3,1) 1.12s;
 }
 
 .menu-nav-panel--open .menu-contact {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(0);
 }
 
 .menu-contact p {
@@ -499,16 +505,14 @@ body {
     background: rgba(0,0,0,0.65);
   }
 
-  /* nav panel slides up from bottom */
+  /* nav panel travels with overlay, no extra transform */
   .menu-nav-panel {
     position: absolute;
     inset: 0;
     background: transparent;
-    transform: translateY(60px);
-    opacity: 0;
-    transition:
-      transform 0.6s cubic-bezier(0.16, 1, 0.3, 1),
-      opacity   0.5s ease;
+    transform: none;
+    opacity: 1;
+    transition: none;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -516,11 +520,11 @@ body {
   }
 
   .menu-nav-panel--open {
-    transform: translateY(0);
+    transform: none;
     opacity: 1;
   }
 
-  /* top bar pinned */
+  /* top bar pinned — fades in after overlay lands */
   .menu-top {
     position: absolute;
     top: clamp(20px, 4vh, 40px);
@@ -529,13 +533,13 @@ body {
     margin-bottom: 0;
     padding: 0 clamp(28px, 7vw, 48px);
     opacity: 0;
-    transform: translateY(-12px);
-    transition: opacity 0.45s ease 0.18s, transform 0.5s cubic-bezier(0.16,1,0.3,1) 0.18s;
+    transform: translateX(24px);
+    transition: opacity 0.45s ease 0.68s, transform 0.5s cubic-bezier(0.16,1,0.3,1) 0.68s;
   }
 
   .menu-nav-panel--open .menu-top {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(0);
   }
 
   .menu-logo {
