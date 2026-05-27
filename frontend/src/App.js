@@ -107,7 +107,7 @@ function Hero() {
 
         {/* Right — white nav panel */}
         <div className={`menu-nav-panel${menuOpen ? ' menu-nav-panel--open' : ''}`}>
-          {/* Logo + close */}
+          {/* Logo centered + close top-right */}
           <div className="menu-top">
             <img src={logoImg} alt="Casa Chalora" className="menu-logo" />
             <button className="menu-close" onClick={() => setMenuOpen(false)} aria-label="Close menu">✕</button>
@@ -123,7 +123,8 @@ function Hero() {
                 style={{ '--link-delay': `${0.32 + i * 0.08}s` }}
                 onClick={() => setMenuOpen(false)}
               >
-                {link}
+                <span className="menu-link-arrow">→</span>
+                <span className="menu-link-text">{link}</span>
               </a>
             ))}
           </nav>
