@@ -353,12 +353,12 @@ body {
   transform: translateX(0);
 }
 
-/* ── Top row: logo centered + close top-right ── */
+/* ── Top row: logo left-aligned + close top-right ── */
 .menu-top {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   margin-bottom: clamp(28px, 5vh, 52px);
   opacity: 0;
   transform: translateY(-16px);
@@ -371,7 +371,7 @@ body {
 }
 
 .menu-logo {
-  width: clamp(80px, 10vw, 140px);
+  width: clamp(100px, 12vw, 170px);
   height: auto;
 }
 
