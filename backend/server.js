@@ -316,6 +316,82 @@ app.post('/api/admin/seed-demo', requireAdmin, async (req, res) => {
   }
 });
 
+/* ── GET /api/bookings/my — customer's own bookings ── */
+app.get('/api/bookings/my', requireAuth, async (req, res) => {
+  try {
+    const bookings = await prisma.booking.findMany({
+      where: { userId: req.user.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ bookings });
+  } catch (err) {
+    console.error('My bookings error:', err.message);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+/* ── POST /api/bookings — customer creates a booking ── */
+app.post('/api/bookings', requireAuth, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+
+    const { checkIn, checkOut, guests, contactNumber, notes, paymentMethod } = req.body;
+
+    if (!checkIn || !checkOut || !guests || !contactNumber) {
+      return res.status(400).json({ message: 'Check-in, check-out, guests and contact number are required.' });
+    }
+
+    const checkInDate  = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    if (checkInDate >= checkOutDate) {
+      return res.status(400).json({ message: 'Check-out must be after check-in.' });
+    }
+
+    const nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+    const RATE_PER_NIGHT = 25000;
+    const totalAmount = nights * RATE_PER_NIGHT;
+
+    const booking = await prisma.booking.create({
+      data: {
+        customerName:  user.name,
+        email:         user.email,
+        contactNumber,
+        checkIn:       checkInDate,
+        checkOut:      checkOutDate,
+        guests:        parseInt(guests),
+        paymentMethod: paymentMethod || 'card',
+        paymentStatus: 'pending',
+        totalAmount,
+        notes:         notes || '',
+        userId:        user.id,
+      },
+    });
+
+    res.status(201).json({ booking });
+  } catch (err) {
+    console.error('Create booking error:', err.message);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+/* ── DELETE /api/bookings/:id — customer cancels own booking ── */
+app.delete('/api/bookings/:id', requireAuth, async (req, res) => {
+  try {
+    const id      = parseInt(req.params.id);
+    const booking = await prisma.booking.findUnique({ where: { id } });
+    if (!booking)                       return res.status(404).json({ message: 'Booking not found.' });
+    if (booking.userId !== req.user.id) return res.status(403).json({ message: 'Not your booking.' });
+    if (booking.paymentStatus === 'paid') return res.status(400).json({ message: 'Paid bookings cannot be cancelled. Please contact us.' });
+
+    await prisma.booking.delete({ where: { id } });
+    res.json({ message: 'Booking cancelled.' });
+  } catch (err) {
+    console.error('Cancel booking error:', err.message);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
