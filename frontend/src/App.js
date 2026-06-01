@@ -7,6 +7,7 @@ import OurVilla        from './components/OurVilla/OurVilla';
 import Amenities       from './components/Amenities/Amenities';
 import Gallery         from './components/Gallery/Gallery';
 import Accommodation   from './components/Accommodation/Accommodation';
+import Contact         from './components/Contact/Contact';
 import AuthModal       from './components/AuthModal/AuthModal';
 import AdminDashboard  from './components/AdminDashboard/AdminDashboard';
 import BookingPage     from './components/BookingPage/BookingPage';
@@ -66,6 +67,7 @@ export default function App() {
       <Amenities />
       <Gallery />
       <Accommodation />
+      <Contact />
       {authOpen && <AuthModal onClose={closeAuth} onAuthSuccess={handleAuthSuccess} />}
     </div>
   );

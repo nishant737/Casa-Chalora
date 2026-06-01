@@ -11,11 +11,53 @@ const VILLA_SLIDES = [
   { src: ourVilla4,   pos: 'center top'    },
 ];
 
-const LANDMARKS = [
-  { name: 'Candolim Beach', distance: '2.4 km' },
-  { name: 'Calangute Beach', distance: '3.7 km' },
-  { name: 'Aguada Fort',     distance: '6.6 km' },
-  { name: 'Baga Beach',      distance: '6.7 km' },
+const VILLA_STATS = [
+  {
+    value: '9',
+    label: 'Guests',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="7" r="3.5"/>
+        <path d="M5 21v-1.5A5.5 5.5 0 0 1 10.5 14h3A5.5 5.5 0 0 1 19 19.5V21"/>
+      </svg>
+    ),
+  },
+  {
+    value: '3',
+    label: 'Rooms',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9.5V19a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V9.5"/>
+        <path d="M2 10l10-7 10 7"/>
+        <rect x="9" y="14" width="6" height="6" rx="0.5"/>
+      </svg>
+    ),
+  },
+  {
+    value: '5',
+    label: 'Baths',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 12h16v3a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5v-3Z"/>
+        <path d="M4 12V6a2 2 0 0 1 2-2c.6 0 1.1.2 1.5.6L9 6"/>
+        <line x1="8" y1="20" x2="8" y2="22"/>
+        <line x1="16" y1="20" x2="16" y2="22"/>
+        <line x1="2" y1="12" x2="22" y2="12"/>
+      </svg>
+    ),
+  },
+  {
+    value: '✦',
+    label: 'Meals Available',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3C8 3 5 6.5 5 10h14c0-3.5-3-7-7-7Z"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+        <line x1="12" y1="10" x2="12" y2="20"/>
+        <path d="M8 20h8"/>
+      </svg>
+    ),
+  },
 ];
 
 export default function OurVilla() {
@@ -54,22 +96,22 @@ export default function OurVilla() {
           to high-definition entertainment and fully stocked bar counters.
         </p>
 
-        <div className="our-villa-landmarks">
-          <span className="our-villa-landmarks-label">Nearby Landmarks</span>
-          <ul className="our-villa-landmarks-list">
-            {LANDMARKS.map(({ name, distance }) => (
-              <li key={name} className="our-villa-landmarks-item">
-                <span className="our-villa-landmarks-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-                    <circle cx="12" cy="9" r="2.5"/>
-                  </svg>
-                </span>
-                <span className="our-villa-landmarks-name">{name}</span>
-                <span className="our-villa-landmarks-distance">{distance}</span>
-              </li>
-            ))}
-          </ul>
+        <p className="our-villa-body">
+          Every corner of Casa Chalora has been thoughtfully designed to offer the finest in
+          comfort and style. Whether you are unwinding by the sparkling pool, hosting an intimate
+          gathering on the sun-drenched lawn, or simply soaking in the serene Goan atmosphere,
+          this villa is your personal sanctuary — a place where every moment feels effortlessly
+          luxurious and every stay becomes an unforgettable memory.
+        </p>
+
+        <div className="our-villa-stats">
+          {VILLA_STATS.map(({ value, label, icon }) => (
+            <div key={label} className="our-villa-stat">
+              <span className="our-villa-stat-icon">{icon}</span>
+              <span className="our-villa-stat-value">{value}</span>
+              <span className="our-villa-stat-label">{label}</span>
+            </div>
+          ))}
         </div>
       </div>
     </section>
