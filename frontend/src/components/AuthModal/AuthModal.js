@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+const API = process.env.REACT_APP_API_URL || '';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function AuthModal({ onClose, onAuthSuccess }) {
@@ -46,7 +47,7 @@ export default function AuthModal({ onClose, onAuthSuccess }) {
     setApiError('');
     setLoading(true);
     try {
-      const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
+      const endpoint = mode === 'login' ? `${API}/api/auth/login` : `${API}/api/auth/register`;
       const body = mode === 'login'
         ? { email: fields.email, password: fields.password }
         : { name: fields.name, email: fields.email, password: fields.password };

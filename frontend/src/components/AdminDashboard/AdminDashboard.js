@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import logoImg from '../../assets/images/Casa_Chalora_Logo.png';
 import heroBg  from '../../assets/images/casa-ourvilla.jpg';
 
-const API = 'http://localhost:4000';
+const API = process.env.REACT_APP_API_URL || 'http://localhost:4000';
 
 function fmt(d) {
   if (!d) return '—';

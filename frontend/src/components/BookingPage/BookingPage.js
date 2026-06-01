@@ -4,7 +4,7 @@ import heroBg     from '../../assets/images/casa-ourvilla.jpg';
 import villaBg2   from '../../assets/images/our villa 2.jpg';
 import villaBg3   from '../../assets/images/our villa 3.jpg';
 
-const API = 'http://localhost:4000';
+const API = process.env.REACT_APP_API_URL || 'http://localhost:4000';
 
 function fmt(d) {
   if (!d) return '—';
