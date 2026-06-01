@@ -13,7 +13,19 @@ const app    = express();
 const PORT   = process.env.PORT || 4000;
 const SECRET = process.env.JWT_SECRET;
 
-app.use(cors({ origin: 'http://localhost:3000' }));
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) cb(null, true);
+    else cb(new Error('CORS: origin not allowed'));
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 /* ── POST /api/auth/register ── */
