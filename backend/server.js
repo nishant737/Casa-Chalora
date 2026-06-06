@@ -3,6 +3,8 @@ const express            = require('express');
 const cors               = require('cors');
 const jwt                = require('jsonwebtoken');
 const bcrypt             = require('bcryptjs');
+const crypto             = require('crypto');
+const Razorpay           = require('razorpay');
 const { Pool }           = require('pg');
 const { PrismaClient }   = require('@prisma/client');
 const { PrismaPg }       = require('@prisma/adapter-pg');
@@ -10,8 +12,19 @@ const { PrismaPg }       = require('@prisma/adapter-pg');
 const pool   = new Pool({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 const app    = express();
+
+const razorpay = (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET)
+  ? new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET })
+  : null;
 const PORT   = process.env.PORT || 4000;
 const SECRET = process.env.JWT_SECRET;
+
+const RATE_PER_NIGHT  = parseInt(process.env.RATE_PER_NIGHT || '25000');
+const EXTRAS_PRICING  = { bbq: 800, cook: 4000, driver: 800, pet: 1500 };
+function calcExtrasAmount(extraServices) {
+  if (!Array.isArray(extraServices)) return 0;
+  return extraServices.reduce((sum, key) => sum + (EXTRAS_PRICING[key] || 0), 0);
+}
 
 const ALLOWED_ORIGINS = [
   'http://localhost:3000',
@@ -26,6 +39,117 @@ app.use(cors({
   },
   credentials: true,
 }));
+/* Webhook route needs the raw body for HMAC verification — must be
+   registered BEFORE express.json() so it gets the untouched buffer. */
+app.post('/api/webhooks/razorpay', express.raw({ type: 'application/json' }), async (req, res) => {
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  if (!webhookSecret || webhookSecret === 'your_webhook_secret_here') {
+    console.warn('Razorpay webhook received but RAZORPAY_WEBHOOK_SECRET is not set — skipping.');
+    return res.status(200).json({ status: 'ignored' });
+  }
+
+  const signature = req.headers['x-razorpay-signature'];
+  if (!signature) return res.status(400).json({ message: 'Missing signature header.' });
+
+  /* Verify the webhook signature using the raw body buffer */
+  const expected = crypto
+    .createHmac('sha256', webhookSecret)
+    .update(req.body)          // req.body is a Buffer here
+    .digest('hex');
+
+  if (expected !== signature) {
+    console.error('Razorpay webhook signature mismatch — possible spoofed request.');
+    return res.status(400).json({ message: 'Invalid signature.' });
+  }
+
+  let event;
+  try {
+    event = JSON.parse(req.body.toString());
+  } catch {
+    return res.status(400).json({ message: 'Invalid JSON payload.' });
+  }
+
+  console.log('Razorpay webhook event:', event.event);
+
+  /* Handle payment.captured — this is the reliable confirmation that
+     money actually arrived. We upsert the booking so duplicate webhooks
+     are safe (Razorpay may send the same event more than once). */
+  if (event.event === 'payment.captured') {
+    const payment   = event.payload.payment.entity;
+    const orderId   = payment.order_id;   // links back to the order we created
+    const paymentId = payment.id;
+
+    try {
+      /* Find a pending booking created by the client-side verify-payment flow,
+         OR create one if the browser never called verify-payment at all. */
+      const existing = await prisma.booking.findFirst({
+        where: {
+          OR: [
+            { razorpayOrderId:   orderId   },
+            { razorpayPaymentId: paymentId },
+          ],
+        },
+      });
+
+      if (existing) {
+        /* Already recorded — just ensure it is marked paid */
+        if (existing.paymentStatus !== 'paid') {
+          await prisma.booking.update({
+            where: { id: existing.id },
+            data:  { paymentStatus: 'paid', razorpayPaymentId: paymentId },
+          });
+          console.log(`Webhook: marked booking ${existing.id} as paid.`);
+        } else {
+          console.log(`Webhook: booking ${existing.id} already paid — no-op.`);
+        }
+      } else {
+        /* Browser never called verify-payment — create the booking now
+           using the notes Razorpay echoes back from orders.create(). */
+        const notes = payment.notes || {};
+        if (notes.userId && notes.checkIn && notes.checkOut) {
+          const user = await prisma.user.findUnique({ where: { id: parseInt(notes.userId) } });
+          if (user) {
+            const checkInDate  = new Date(notes.checkIn);
+            const checkOutDate = new Date(notes.checkOut);
+            const nights       = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+            await prisma.booking.create({
+              data: {
+                customerName:     user.name,
+                email:            user.email,
+                contactNumber:    notes.contactNumber || '',
+                checkIn:          checkInDate,
+                checkOut:         checkOutDate,
+                guests:           parseInt(notes.guests) || 1,
+                paymentMethod:    'card',
+                paymentStatus:    'paid',
+                totalAmount:      nights * RATE_PER_NIGHT,
+                notes:            '',
+                userId:           user.id,
+                razorpayOrderId:  orderId,
+                razorpayPaymentId: paymentId,
+              },
+            });
+            console.log(`Webhook: created booking for user ${user.id} via fallback path.`);
+          }
+        } else {
+          console.warn('Webhook: payment.captured missing notes — cannot create booking automatically.');
+        }
+      }
+    } catch (err) {
+      console.error('Webhook DB error:', err.message);
+      /* Return 200 anyway so Razorpay does not keep retrying for a DB
+         hiccup — we can reconcile manually from the Razorpay dashboard. */
+    }
+  }
+
+  if (event.event === 'payment.failed') {
+    const payment = event.payload.payment.entity;
+    console.log(`Webhook: payment failed — order ${payment.order_id}, error: ${payment.error_description}`);
+  }
+
+  res.status(200).json({ status: 'ok' });
+});
+
 app.use(express.json());
 
 /* ── POST /api/auth/register ── */
@@ -360,8 +484,7 @@ app.post('/api/bookings', requireAuth, async (req, res) => {
       return res.status(400).json({ message: 'Check-out must be after check-in.' });
     }
 
-    const nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
-    const RATE_PER_NIGHT = 25000;
+    const nights      = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
     const totalAmount = nights * RATE_PER_NIGHT;
 
     const booking = await prisma.booking.create({
@@ -400,6 +523,159 @@ app.delete('/api/bookings/:id', requireAuth, async (req, res) => {
     res.json({ message: 'Booking cancelled.' });
   } catch (err) {
     console.error('Cancel booking error:', err.message);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+/* ── GET /api/availability ── */
+app.get('/api/availability', async (req, res) => {
+  const { checkIn, checkOut } = req.query;
+  if (!checkIn || !checkOut) {
+    return res.status(400).json({ message: 'checkIn and checkOut are required.' });
+  }
+  try {
+    const checkInDate  = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    if (isNaN(checkInDate) || isNaN(checkOutDate)) {
+      return res.status(400).json({ message: 'Invalid date format.' });
+    }
+    if (checkInDate >= checkOutDate) {
+      return res.status(400).json({ message: 'Check-out must be after check-in.' });
+    }
+
+    const conflicts = await prisma.booking.findMany({
+      where: {
+        AND: [
+          { checkIn:       { lt: checkOutDate } },
+          { checkOut:      { gt: checkInDate  } },
+          { paymentStatus: { notIn: ['failed', 'refunded'] } },
+        ],
+      },
+      select: { checkIn: true, checkOut: true },
+    });
+
+    const nights      = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+    const totalAmount = nights * RATE_PER_NIGHT;
+
+    res.json({
+      available:   conflicts.length === 0,
+      nights,
+      totalAmount,
+      conflicts:   conflicts.map(c => ({ checkIn: c.checkIn, checkOut: c.checkOut })),
+    });
+  } catch (err) {
+    console.error('Availability error:', err.message);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+/* ── POST /api/bookings/create-order ── */
+app.post('/api/bookings/create-order', requireAuth, async (req, res) => {
+  if (!razorpay) {
+    return res.status(503).json({ message: 'Payment service is not configured. Please contact support.' });
+  }
+  const { checkIn, checkOut, guests, contactNumber, paymentMethod, notes, extraServices } = req.body;
+  if (!checkIn || !checkOut || !guests || !contactNumber) {
+    return res.status(400).json({ message: 'Check-in, check-out, guests and contact number are required.' });
+  }
+  try {
+    const checkInDate  = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    if (checkInDate >= checkOutDate) {
+      return res.status(400).json({ message: 'Check-out must be after check-in.' });
+    }
+
+    const conflicts = await prisma.booking.findMany({
+      where: {
+        AND: [
+          { checkIn:       { lt: checkOutDate } },
+          { checkOut:      { gt: checkInDate  } },
+          { paymentStatus: { notIn: ['failed', 'refunded'] } },
+        ],
+      },
+    });
+    if (conflicts.length > 0) {
+      return res.status(409).json({ message: 'Selected dates are no longer available. Please choose different dates.' });
+    }
+
+    const nights       = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+    const extrasAmount = calcExtrasAmount(extraServices);
+    const totalAmount  = (nights * RATE_PER_NIGHT) + extrasAmount;
+
+    const order = await razorpay.orders.create({
+      amount:   totalAmount * 100,
+      currency: 'INR',
+      receipt:  `bk_${req.user.id}_${Date.now()}`,
+      notes:    { userId: String(req.user.id), checkIn, checkOut, guests: String(guests) },
+    });
+
+    res.json({
+      orderId:        order.id,
+      amount:         order.amount,
+      currency:       order.currency,
+      keyId:          process.env.RAZORPAY_KEY_ID,
+      bookingPreview: { nights, totalAmount, extrasAmount },
+    });
+  } catch (err) {
+    console.error('Create order error:', err.statusCode, err.error || err.message);
+    if (err.statusCode === 401) {
+      return res.status(500).json({ message: 'Payment gateway authentication failed. Please check your Razorpay API keys in the server .env file.' });
+    }
+    res.status(500).json({ message: err.error?.description || err.message || 'Server error creating payment order.' });
+  }
+});
+
+/* ── POST /api/bookings/verify-payment ── */
+app.post('/api/bookings/verify-payment', requireAuth, async (req, res) => {
+  const {
+    razorpay_payment_id, razorpay_order_id, razorpay_signature,
+    checkIn, checkOut, guests, contactNumber, paymentMethod, notes, extraServices,
+  } = req.body;
+
+  if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+    return res.status(400).json({ message: 'Payment details are incomplete.' });
+  }
+  try {
+    const expected = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+
+    if (expected !== razorpay_signature) {
+      return res.status(400).json({ message: 'Payment verification failed. Please contact support.' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+
+    const checkInDate  = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    const nights       = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+    const extrasAmount = calcExtrasAmount(extraServices);
+    const totalAmount  = (nights * RATE_PER_NIGHT) + extrasAmount;
+
+    const booking = await prisma.booking.create({
+      data: {
+        customerName:     user.name,
+        email:            user.email,
+        contactNumber,
+        checkIn:          checkInDate,
+        checkOut:         checkOutDate,
+        guests:           parseInt(guests),
+        paymentMethod:    paymentMethod || 'card',
+        paymentStatus:    'paid',
+        totalAmount,
+        extraServices:    Array.isArray(extraServices) && extraServices.length ? extraServices.join(',') : null,
+        notes:            notes || '',
+        userId:           user.id,
+        razorpayOrderId:  razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+      },
+    });
+
+    res.status(201).json({ booking });
+  } catch (err) {
+    console.error('Verify payment error:', err.message);
     res.status(500).json({ message: 'Server error.' });
   }
 });
