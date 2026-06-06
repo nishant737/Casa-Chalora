@@ -53,7 +53,7 @@ export default function Amenities() {
   }, [total]);
 
   return (
-    <div style={{ display: 'block', width: '100%', height: '100vh', overflow: 'hidden', position: 'relative', zIndex: 0 }}>
+    <div className="amenities-clip">
       <section id="amenities" className="amenities-section">
         <div className="amenities-topbar">
           <span className="amenities-eyebrow">What We Offer</span>

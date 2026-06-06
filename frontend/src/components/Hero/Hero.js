@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import heroImage from '../../assets/images/hamburger.jpg';
 import logoImg from '../../assets/images/Casa_Chalora_Logo.png';
 import aboutVideo from '../../assets/images/aboutus.mp4';
 
 export default function Hero() {
   const videoRef = useRef(null);
-  const [logoVisible, setLogoVisible] = useState(false);
-  const [logoSmall, setLogoSmall] = useState(false);
+  const [logoVisible,  setLogoVisible]  = useState(false);
+  const [logoSmall,    setLogoSmall]    = useState(false);
+  const [videoReady,   setVideoReady]   = useState(false);
 
   useEffect(() => {
     const t1 = setTimeout(() => setLogoVisible(true), 300);
@@ -17,26 +17,25 @@ export default function Hero() {
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (window.innerWidth < 768) {
-      video.removeAttribute('src');
-      video.load();
-      return;
-    }
     const handleTimeUpdate = () => { if (video.currentTime >= 26.5) video.currentTime = 4; };
-    const handleLoaded = () => { video.currentTime = 4; video.play().catch(() => {}); };
-    video.addEventListener('timeupdate', handleTimeUpdate);
+    const handleSeeked    = () => { setVideoReady(true); video.play().catch(() => {}); };
+    const handleLoaded    = () => { video.currentTime = 4; };
+    video.addEventListener('timeupdate',     handleTimeUpdate);
     video.addEventListener('loadedmetadata', handleLoaded);
+    video.addEventListener('seeked',         handleSeeked);
     if (video.readyState >= 1) handleLoaded();
     return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('timeupdate',     handleTimeUpdate);
       video.removeEventListener('loadedmetadata', handleLoaded);
+      video.removeEventListener('seeked',         handleSeeked);
     };
   }, []);
 
   return (
     <section id="home" className="hero-section">
-      <video ref={videoRef} className="hero-bg-video" src={aboutVideo} poster={heroImage}
-        autoPlay muted playsInline preload="auto" />
+      <video ref={videoRef}
+        className={`hero-bg-video${videoReady ? ' hero-bg-video--ready' : ''}`}
+        src={aboutVideo} autoPlay muted playsInline preload="auto" />
       <div className="hero-bg-overlay" />
       <div className={`hero-logo-wrap${logoVisible ? ' hero-logo-wrap--visible' : ''}${logoSmall ? ' hero-logo-wrap--small' : ''}`}>
         <img src={logoImg} alt="Casa Chalora" className="hero-logo" />

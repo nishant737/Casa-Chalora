@@ -84,6 +84,13 @@ export default function AdminDashboard({ token, onLogout }) {
   const [checkInFrom,  setCheckInFrom]  = useState('');
   const [checkOutTo,   setCheckOutTo]   = useState('');
   const searchTimer = useRef(null);
+
+  /* ── Fix scroll: reset any overflow:hidden left by previous views ── */
+  useEffect(() => {
+    document.body.style.overflow  = '';
+    document.body.style.overflowY = 'auto';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
   const LIMIT = 20;
 
   const fetchBookings = useCallback(async () => {

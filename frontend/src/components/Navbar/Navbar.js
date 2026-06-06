@@ -3,13 +3,25 @@ import heroImage from '../../assets/images/hamburger.jpg';
 
 const NAV_LINKS = ['Home', 'Our Villa', 'Experiences', 'Gallery', 'Amenities', 'About Us', 'Contact Us'];
 
-export default function Navbar({ menuOpen, setMenuOpen, onBookNow }) {
+export default function Navbar({ menuOpen, setMenuOpen, onBookNow, onMyAccount, token, userName }) {
+  const initials = token && userName
+    ? userName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+    : '';
+
   return (
     <>
       {/* Fixed nav bar */}
       <nav className="hero-nav">
         <div className="hero-nav-left" />
         <div className="hero-nav-right">
+          {/* Show avatar only when logged in */}
+          {token && (
+            <button className="hero-nav-account" onClick={onMyAccount} aria-label="My Account">
+              <span className="hero-nav-avatar-sm">{initials}</span>
+              <span>{userName.split(' ')[0]}</span>
+            </button>
+          )}
+
           <button className="hero-nav-book" onClick={onBookNow}>BOOK NOW</button>
           <button className="hero-nav-hamburger" onClick={() => setMenuOpen(true)} aria-label="Menu">
             <span /><span /><span />
@@ -47,6 +59,19 @@ export default function Navbar({ menuOpen, setMenuOpen, onBookNow }) {
                 <span className="menu-link-text">{link}</span>
               </a>
             ))}
+
+            {/* My Account */}
+            <button
+              className="menu-link menu-link--account"
+              style={{ '--link-delay': `${0.72 + NAV_LINKS.length * 0.07}s` }}
+              onClick={() => { setMenuOpen(false); onMyAccount(); }}
+            >
+              <span className="menu-link-arrow">→</span>
+              <span className="menu-link-text">
+                {token ? `My Account` : 'My Account'}
+              </span>
+              {token && <span className="menu-link-badge">{initials}</span>}
+            </button>
           </nav>
 
           <div className="menu-contact">

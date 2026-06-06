@@ -214,7 +214,7 @@ function NewBookingModal({ initialForm, onClose, onSuccess, token }) {
           <div className="bp2-modal-villa-info">
             <strong>Casa Chalora</strong>
             <span>Candolim, North Goa</span>
-            <span>Up to 30 guests · Private Pool · ₹25,000/night</span>
+            <span>Up to 9 guests · Private Pool · ₹25,000/night</span>
           </div>
         </div>
         <form onSubmit={submit} className="bp2-modal-form">
@@ -306,7 +306,6 @@ function AccountView({ userName, userEmail, bookings, onNewBooking, onCancel, ca
           <table className="bp2-history-table">
             <thead>
               <tr>
-                <th>#</th>
                 <th>Check-in</th>
                 <th>Check-out</th>
                 <th>Nights</th>
@@ -322,7 +321,6 @@ function AccountView({ userName, userEmail, bookings, onNewBooking, onCancel, ca
                 const n = nightCount(b.checkIn, b.checkOut);
                 return (
                   <tr key={b.id}>
-                    <td className="bp2-ht-id">#{b.id}</td>
                     <td>{fmt(b.checkIn)}</td>
                     <td>{fmt(b.checkOut)}</td>
                     <td>{n}</td>
@@ -353,7 +351,7 @@ function AccountView({ userName, userEmail, bookings, onNewBooking, onCancel, ca
 }
 
 /* ─── BookingPage Root ──────────────────────────────────── */
-export default function BookingPage({ token, userName, onLogout }) {
+export default function BookingPage({ token, userName, onLogout, onNewBooking }) {
   const [bookings,     setBookings]     = useState([]);
   const [loading,      setLoading]      = useState(true);
 
@@ -364,7 +362,7 @@ export default function BookingPage({ token, userName, onLogout }) {
     document.body.style.overflowY = 'auto';
     return () => { document.body.style.overflow = ''; };
   }, []);
-  const [view,         setView]         = useState('home'); // 'home' | 'account'
+  const [view,         setView]         = useState('account'); // 'home' | 'account'
   const [showModal,    setShowModal]    = useState(false);
   const [modalForm,    setModalForm]    = useState(null);
   const [cancellingId, setCancellingId] = useState(null);
@@ -389,7 +387,14 @@ export default function BookingPage({ token, userName, onLogout }) {
       .then(r => r.json()).then(d => { if (d.email) setUserEmail(d.email); }).catch(() => {});
   }, [token]);
 
-  const handleSearch = (form) => { setModalForm(form); setShowModal(true); };
+  // Opens the booking flow — navigates to BookingFlow page if onNewBooking is wired,
+  // otherwise falls back to the inline modal (used when component is rendered standalone).
+  const openNewBooking = useCallback((form = null) => {
+    if (onNewBooking) { onNewBooking(form); }
+    else { setModalForm(form); setShowModal(true); }
+  }, [onNewBooking]);
+
+  const handleSearch = (form) => { openNewBooking(form); };
 
   const handleBookingSuccess = () => {
     setShowModal(false);
@@ -417,8 +422,8 @@ export default function BookingPage({ token, userName, onLogout }) {
       <nav className="bp2-nav">
         <img src={logoImg} alt="Casa Chalora" className="bp2-nav-logo" onClick={() => setView('home')} style={{ cursor: 'pointer' }} />
         <div className="bp2-nav-center">
-          <button className={`bp2-nav-link${view === 'home' ? ' bp2-nav-link--active' : ''}`} onClick={() => setView('home')}>Home</button>
           <button className={`bp2-nav-link${view === 'account' ? ' bp2-nav-link--active' : ''}`} onClick={() => setView('account')}>My Bookings</button>
+          <button className={`bp2-nav-link${view === 'home' ? ' bp2-nav-link--active' : ''}`} onClick={() => setView('home')}>Book a Stay</button>
         </div>
         <ProfileDropdown
           userName={userName}
@@ -439,12 +444,12 @@ export default function BookingPage({ token, userName, onLogout }) {
             {loading ? (
               <div className="bp2-loading">Loading your bookings…</div>
             ) : bookings.length === 0 ? (
-              <EmptyState onBook={() => setShowModal(true)} />
+              <EmptyState onBook={() => openNewBooking()} />
             ) : (
               <div className="bp2-bookings-section">
                 <div className="bp2-bookings-header">
                   <h2 className="bp2-bookings-title">Your Stays</h2>
-                  <button className="bp2-btn-primary" onClick={() => setShowModal(true)}>+ New Booking</button>
+                  <button className="bp2-btn-primary" onClick={() => openNewBooking()}>+ New Booking</button>
                 </div>
                 <div className="bp2-cards-grid">
                   {bookings.map((b, i) => (
@@ -470,7 +475,7 @@ export default function BookingPage({ token, userName, onLogout }) {
             userName={userName}
             userEmail={userEmail}
             bookings={bookings}
-            onNewBooking={() => setShowModal(true)}
+            onNewBooking={() => openNewBooking()}
             onCancel={handleCancel}
             cancelling={cancellingId}
           />
